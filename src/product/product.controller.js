@@ -4,17 +4,47 @@ import { userModel } from "../../Model/user.model.js";
 
 export const addProduct = async (req, res) => {
   try {
-    const { name, description, price,category } = req.body;
+    const { name, description, category, sizes } = req.body;
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: "الرجاء تحميل صورة واحدة على الأقل" });
+    }
+
+    if (!name || !category || !sizes) {
+      return res.status(400).json({ message: "يرجى ملء جميع الحقول المطلوبة" });
+    }
+
+    let parsedSizes;
+    try {
+      parsedSizes = typeof sizes === "string" ? JSON.parse(sizes) : sizes;
+    } catch (e) {
+      return res.status(400).json({ message: "تنسيق الأحجام غير صالح" });
+    }
+
+    const validSizes = ["s", "m", "l"];
+    const isValid = Array.isArray(parsedSizes) && parsedSizes.every(
+      (item) =>
+        validSizes.includes(item.size) &&
+        typeof item.price === "number" &&
+        item.price > 0
+    );
+
+    if (!isValid) {
+      return res.status(400).json({ message: "الرجاء إدخال أحجام وأسعار صحيحة" });
     }
 
     // حفظ مسارات الصور
     const imagePaths = req.files.map((file) => `/uploads/${file.filename}`);
 
     // إنشاء المنتج
-    const newItem = new ProductModel({ name, description, price,category, images: imagePaths });
+    const newItem = new ProductModel({
+      name,
+      description,
+      category,
+      sizes: parsedSizes,
+      images: imagePaths,
+    });
+
     await newItem.save();
 
     res.status(201).json({ success: true, message: "تمت إضافة العنصر بنجاح", newItem });
@@ -24,8 +54,9 @@ export const addProduct = async (req, res) => {
   }
 };
 
+
 export const getAllProducts=async (req, res) => {
-  const allProducts = await ProductModel.find()
+  const allProducts = await ProductModel.find().populate("reviews.userId", "name ")
 
   const count = allProducts.length
   res.status(200).json({message: "All products",success: true,data:allProducts,count})
@@ -56,7 +87,7 @@ export const productDetails= async (req, res) => {
     const { id } = req.params;
     const product = await ProductModel.findById(id).populate({
       path: 'reviews.userId',
-      select: 'name email role' // حدد اللي تحب ترجع من بيانات اليوزر
+      select: 'name ' // حدد اللي تحب ترجع من بيانات اليوزر
     });
     if (product) {
       res.status(200).json({message:"product found successfully",success:true,data:product});
@@ -83,16 +114,15 @@ export const searchProducts =  async (req, res) => {
 
 export const getCategoryProduct= async (req, res) => {
   try {
-    // استعلام aggregate لجلب منتج واحد فقط من كل category
     const products = await ProductModel.aggregate([
       {
         $group: {
-          _id: '$category', // تجميع حسب الـcategory
-          product: { $first: '$$ROOT' } // أخذ أول منتج من كل فئة
+          _id: '$category', 
+          product: { $first: '$$ROOT' }
         }
       },
       {
-        $replaceRoot: { newRoot: '$product' } // استبدال الجذر بالـproduct
+        $replaceRoot: { newRoot: '$product' } 
       }
     ]);
 
@@ -165,7 +195,12 @@ export const addReviewToProduct = async (req, res) => {
 
     await product.save();
 
-    res.status(201).json({ message: "Review added", product, success: true });
+    const populatedProduct = await ProductModel.findById(productId).populate({
+      path: 'reviews.userId',
+      select: 'name'
+    });
+
+    res.status(201).json({ message: "Review added", product: populatedProduct, success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -195,8 +230,11 @@ export const editReview = async (req, res) => {
       product.averageRating =
       product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
       await product.save();
-
-    res.status(200).json({ message: "Review updated", product, success: true });
+ const populatedProduct = await ProductModel.findById(productId).populate({
+      path: 'reviews.userId',
+      select: 'name'
+    });
+    res.status(200).json({ message: "Review updated", product:populatedProduct, success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -233,3 +271,22 @@ export const deleteReview = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+
+export const changeCat=async (req, res) => {
+  try {
+    const updatedProduct = await ProductModel.findByIdAndUpdate(
+      req.params.id,
+      { category: req.body.category },
+      { new: true } // يرجعلك النسخة بعد التحديث
+    );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json({ success: true, data: updatedProduct });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}

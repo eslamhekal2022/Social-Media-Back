@@ -1,26 +1,30 @@
 import mongoose from "mongoose";
+
 const ProductSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    category: { type: String, required: true },
-    description: { type: String },
-    price: { type: Number, required: true },
-    images: [{ type: String }],
-    isTrending: { type: Boolean, default: false },
-    sold: { type: Number, default: 0 },
-    views: { type: Number, default: 0 },
+    name: { type: String, required: true }, // اسم المنتج
+    category: { type: String, required: true }, // فئة المنتج (مثلاً: بيتزا، برجر)
+    description: { type: String }, // وصف المنتج
+    images: [{ type: String }], // صور المنتج
+
+    // الأحجام والأسعار
+    sizes: [
+      {
+        size: { type: String, enum: ["s", "m", "l"], required: true },
+        price: { type: Number, required: true }
+      }
+    ],
 
     reviews: [
       {
         userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-        rating: { type: Number, required: true }, // 1 to 5
+        rating: { type: Number, min: 1, max: 5, required: true },
         comment: { type: String },
         createdAt: { type: Date, default: Date.now }
       }
-    ],
-    averageRating: { type: Number, default: 0 }, // ⭐ متوسط التقييمات
+    ]
   },
   { timestamps: true }
-
 );
+
 export const ProductModel = mongoose.model("Product", ProductSchema);

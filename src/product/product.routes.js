@@ -1,4 +1,4 @@
-import { addProduct, addReviewToProduct, deleteReview, editReview, getAllProducts, getCategoryProduct, getFilterCat, productDetails, removeProduct, searchProducts } from "./product.controller.js"
+import { addProduct, addReviewToProduct, changeCat, deleteReview, editReview, getAllProducts, getCategoryProduct, getFilterCat, productDetails, removeProduct, searchProducts } from "./product.controller.js"
 import express from "express";
 import multer from "multer";
 import { authMiddleware } from "../../MiddleWare/MiddleWare.js";
@@ -26,6 +26,7 @@ ProductRouter.get("/getProductsCat/:category",getFilterCat)
 ProductRouter.post("/addProductReview/:productId", authMiddleware, addReviewToProduct);
 ProductRouter.put("/editProductReview/:productId/:reviewId", authMiddleware, editReview);
 ProductRouter.delete("/deleteProductReview/:productId/:reviewId", authMiddleware, deleteReview);
+ProductRouter.put("/changeCat/:id", changeCat);
 
 
 
