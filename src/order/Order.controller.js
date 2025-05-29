@@ -2,9 +2,10 @@ import { CartModel } from "../../Model/Cart.model.js";
 import { OrderModel } from "../../Model/Order.model.js";
 
 
-export const checkOut= async (req, res) => {
+export const checkOut = async (req, res) => {
   try {
     const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const cart = await CartModel.findOne({ userId }).populate("products.productId");
 
@@ -14,38 +15,59 @@ export const checkOut= async (req, res) => {
 
     let totalPrice = 0;
 
-    cart.products.forEach(item => {
-      if (item.productId && item.productId.price) {
-        totalPrice += item.productId.price * item.quantity;
-      }
+    // بناء مصفوفة المنتجات للطلب مع سعر الحجم المناسب
+    const orderProducts = cart.products.map(item => {
+      const product = item.productId;
+      if (!product) return null;
+
+      // نلاقي السعر المناسب حسب الحجم من المصفوفة sizes
+      const sizeObj = product.sizes.find(s => s.size === item.size);
+
+      // لو الحجم مش موجود، السعر يساوي 0 (ممكن تعالج الخطأ هنا حسب الحاجة)
+      const price = sizeObj ? sizeObj.price : 0;
+
+      const subTotal = price * (item.quantity || 1);
+      totalPrice += subTotal;
+
+      return {
+        productId: product._id,
+        name: product.name,
+        image: product.images?.[0] || "",
+        size: item.size,
+        price,  // سعر الوحدة حسب الحجم
+        quantity: item.quantity || 1
+      };
+    }).filter(Boolean); // تصفي العناصر null لو حصل
+
+    if (orderProducts.length === 0) {
+      return res.status(400).json({ message: "No valid products in cart" });
+    }
+
+    const newOrder = new OrderModel({
+      userId,
+      products: orderProducts,
+      totalPrice,
+      status: "pending"
     });
- const newOrder = new OrderModel({
-  userId,
-  products: cart.products.map(p => ({
-    productId: p.productId._id,
-    name: p.productId.name,
-    image: p.productId.images?.[0] || "",
-    size: p.size,
-    price: p.productId.price,
-    quantity: p.quantity
-  })),
-  
-  totalPrice
-});
-console.log("cartProducts =>",cart)
-console.log("Product name:", cart.products[0].productId.name);
-console.log("Product name:", cart.products[0].productId.price);
-console.log("Product name:", cart.products[0].productId.size);
 
     await newOrder.save();
+
+    // بعد حفظ الطلب، نمسح الكارت
     cart.products = [];
     await cart.save();
-    res.status(201).json({ message: "Order placed successfully",success:true, order: newOrder });
+
+    res.status(201).json({
+      message: "Order placed successfully",
+      success: true,
+      order: newOrder
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Checkout failed" });
+    console.error("Checkout error:", err);
+    res.status(500).json({ message: "Checkout failed", success: false, error: err.message });
   }
-}
+};
+
 
 export const getAllOrders = async (req, res) => {
   try {
@@ -76,8 +98,7 @@ export const getUserOrders = async (req, res) => {
 
   try {
     const orders = await OrderModel.find({ userId })
-      .populate('products.productId')
-      .populate('userId', 'name email phone');
+      .populate('userId', 'name email phone');  // ما تعطلش populate للمنتجات عشان السعر والحجم موجودين في الأوردر
 
     if (!orders || orders.length === 0) {
       return res.status(200).json({
@@ -89,27 +110,21 @@ export const getUserOrders = async (req, res) => {
     }
 
     const formattedOrders = orders.map(order => {
-      const formattedProducts = order.products.map(item => {
-        const product = item.productId;
-
-        return {
-          _id: product?._id,
-          name: product?.name,
-          price: product?.price,
-          images: product?.images,
-          description: product?.description,
-          quantity: item.quantity || 1,
-
-        };
-      });
+      const formattedProducts = order.products.map(item => ({
+        _id: item.productId,
+        name: item.name,
+        price: item.price,     // السعر المحفوظ في الأوردر
+        size: item.size,       // الحجم المحفوظ في الأوردر
+        images: item.image ? [item.image] : [],  // صورة المنتج من الأوردر
+        quantity: item.quantity || 1,
+      }));
 
       return {
         products: formattedProducts,
         totalPrice: order.totalPrice,
         status: order.status,
         userInfo: order.userId,
-        createdAt: order.createdAt, 
-
+        createdAt: order.createdAt,
       };
     });
 
