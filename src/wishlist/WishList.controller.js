@@ -31,13 +31,13 @@ export const addToWishlist = async (req, res) => {
 };
 
 
-export const getWishlist = async (req, res) => {
+export const getWishlist =async (req, res) => {
   const userId = req.userId;
 
   try {
-    const wishList = await wishListModel.findOne({ userId }).populate('products.productId');
+    const wishlist = await wishListModel.findOne({ userId }).populate('products.productId');
 
-    if (!wishList || !wishList.products || wishList.products.length === 0) {
+    if (!wishlist || !wishlist.products || wishlist.products.length === 0) {
       return res.status(200).json({
         data: [],
         count: 0,
@@ -46,18 +46,23 @@ export const getWishlist = async (req, res) => {
       });
     }
 
-    const count = wishList.products.length;
+    const count = wishlist.products.length;
 
-    const formattedWishlist = wishList.products.map((item) => {
-      const product = item.productId;
-      return {
-        _id: product._id,
-        name: product.name,
-        price: product.price,
-        images: product.images,
-        description: product.description,
-      };
-    });
+
+    const formattedWishlist = wishlist.products
+  .filter((item) => item.productId) // ← اتأكد إنه مش null
+  .map((item) => {
+    const product = item.productId;
+    return {
+      _id: product._id,
+      name: product.name,
+      price: product?.sizes?.[0]?.price || 0,
+      images: product.images,
+      description: product.description,
+        sizes: product.sizes 
+    };
+  });
+
 
     res.status(200).json({
       data: formattedWishlist,

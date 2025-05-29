@@ -4,10 +4,9 @@ import { ProductModel } from "../../Model/Product.model.js";
 
 export const addToCart=  async (req, res) => {
   try {
-    const userId = req.userId; // جاية من الميدل وير
+    const userId = req.userId;
     const { productId, size, quantity } = req.body;
 
-    // تحقق من وجود البيانات المطلوبة
     if (!productId || !size) {
       return res.status(400).json({ message: "Product ID and size are required." });
     }
@@ -17,22 +16,18 @@ export const addToCart=  async (req, res) => {
       return res.status(400).json({ message: "Quantity must be at least 1." });
     }
 
-    // تأكد إن المنتج موجود
     const product = await ProductModel.findById(productId);
     if (!product) {
       return res.status(404).json({ message: "Product not found." });
     }
 
-    // تأكد إن الحجم المختار موجود في المنتج
     const selectedSize = product.sizes.find((s) => s.size === size);
     if (!selectedSize) {
       return res.status(400).json({ message: "Invalid size for this product." });
     }
 
-    // ابحث عن كارت المستخدم
     let cart = await CartModel.findOne({ userId });
 
-    // لو مفيش كارت، أنشئ واحد
     if (!cart) {
       cart = new CartModel({
         userId,
@@ -114,8 +109,6 @@ export const deleteProductCart=async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-
 
 export const updateCartQuantity = async (req, res) => {
   try {

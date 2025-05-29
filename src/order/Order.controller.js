@@ -19,11 +19,23 @@ export const checkOut= async (req, res) => {
         totalPrice += item.productId.price * item.quantity;
       }
     });
-    const newOrder = new OrderModel({
-      userId,
-      products: cart.products,
-      totalPrice
-    });
+ const newOrder = new OrderModel({
+  userId,
+  products: cart.products.map(p => ({
+    productId: p.productId._id,
+    name: p.productId.name,
+    image: p.productId.images?.[0] || "",
+    size: p.size,
+    price: p.productId.price,
+    quantity: p.quantity
+  })),
+  
+  totalPrice
+});
+console.log("cartProducts =>",cart)
+console.log("Product name:", cart.products[0].productId.name);
+console.log("Product name:", cart.products[0].productId.price);
+console.log("Product name:", cart.products[0].productId.size);
 
     await newOrder.save();
     cart.products = [];

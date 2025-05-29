@@ -33,10 +33,8 @@ export const addProduct = async (req, res) => {
       return res.status(400).json({ message: "الرجاء إدخال أحجام وأسعار صحيحة" });
     }
 
-    // حفظ مسارات الصور
     const imagePaths = req.files.map((file) => `/uploads/${file.filename}`);
 
-    // إنشاء المنتج
     const newItem = new ProductModel({
       name,
       description,

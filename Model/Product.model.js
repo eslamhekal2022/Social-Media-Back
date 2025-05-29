@@ -2,12 +2,11 @@ import mongoose from "mongoose";
 
 const ProductSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true }, // اسم المنتج
-    category: { type: String, required: true }, // فئة المنتج (مثلاً: بيتزا، برجر)
-    description: { type: String }, // وصف المنتج
-    images: [{ type: String }], // صور المنتج
+    name: { type: String, required: true },  
+    category: { type: String, required: true },
+    description: { type: String }, 
+    images: [{ type: String }],
 
-    // الأحجام والأسعار
     sizes: [
       {
         size: { type: String, enum: ["s", "m", "l"], required: true },
