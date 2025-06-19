@@ -2,10 +2,10 @@ import multer from 'multer';
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // تحديد مكان تخزين الصور
+    cb(null, 'uploads/');  
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname); // تحديد اسم الصورة
+    cb(null, Date.now() + '-' + file.originalname); 
   },
 });
 

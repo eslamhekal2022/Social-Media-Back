@@ -6,70 +6,76 @@ import http from "http";
 import { Server } from "socket.io";
 
 import userRouter from "./src/user/user.routes.js";
-import ProductRouter from "./src/product/product.routes.js";
-import { CartRouter } from "./src/Cart/cart.routes.js";
-import WishListRouter from "./src/wishlist/wishlist.routes.js";
-import OrderRouter from "./src/order/order.routes.js";
-import userReviews from "./src/ReviewUsers/ReviewUsers.routes.js";
-import { ContactRouter } from "./src/contact/contact.routes.js";
-
+import postRouter from "./src/posts/post.routes.js";
 import { connectDB } from "./dbConnection/dbConnection.js";
+import NotificationRouter from "./src/Notifications/Notifications.routes.js";
+import MessageRouter from "./src/Message/message.routes.js";
 
+// 📦 CONFIG
 dotenv.config();
 connectDB();
 
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server, {
+export const io = new Server(server, {
   cors: {
-    origin: "*", // خليها * مؤقتًا، بعدين رجعها للـ FRONTEND_URLS
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    origin: "http://localhost:5173",
     credentials: true,
   },
 });
 
-app.use((req, res, next) => {
-  req.io = io;
-  next();
-});
+export const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
-  console.log("🟢 A client connected:", socket.id);
-
+  console.log("✅ New client connected:", socket.id);
+socket.on("addUser", (userId) => {
+  onlineUsers.set(userId, socket.id);
+  console.log("🟢 User online:", userId);
+});
   socket.on("disconnect", () => {
-    console.log("🔴 A client disconnected:", socket.id);
+    for (let [userId, sockId] of onlineUsers.entries()) {
+      if (sockId === socket.id) {
+        onlineUsers.delete(userId);
+        console.log("❌ User disconnected:", userId);
+        break;
+      }
+    }
   });
 });
 
+// 🔗 MIDDLEWARES
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static("uploads"));
-app.use(cors({
-  origin: "*", // برضو هنا نفس الكلام
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  credentials: true,
-}));
+
+const allowedOrigins = ["http://localhost:5173"];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
+
 app.use(morgan("dev"));
 
+// 📁 ROUTES
 app.use(userRouter);
-app.use(ProductRouter);
-app.use(CartRouter);
-app.use(WishListRouter);
-app.use(OrderRouter);
-app.use(userReviews);
-app.use(ContactRouter);
+app.use(postRouter);
+app.use(NotificationRouter);
+app.use(MessageRouter);
 
 app.get("/", (req, res) => {
-  res.send("API is running with Socket.IO...");
+  res.send("🚀 Welcome to the Ecommerce API!");
 });
 
-// (اختياري) لمنع النوم في replit
-setInterval(() => {
-  fetch("https://your-replit-url.replit.dev").catch((err) =>
-    console.log("Ping failed:", err)
-  );
-}, 60 * 1000);
-
-const PORT = process.env.PORT || 4000;
+// ✅ Start Server
+const PORT = process.env.PORT || 9000;
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

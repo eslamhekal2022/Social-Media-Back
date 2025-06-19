@@ -16,8 +16,7 @@ const UserSchema = new mongoose.Schema({
     required: true,
   },
   phone: {
-    type: Number,
-    required: true,
+    type: Number
   },
   role: {
     type: String,
@@ -28,6 +27,25 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+ 
+    followers: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+  following: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
+emailVerificationToken: String,
+emailVerificationExpires: Date,
+     resetPasswordToken: String,
+  resetPasswordExpires: Date,
+  isVerified: { type: Boolean, default: false }
+
 },{timestamps: true});
 
 
