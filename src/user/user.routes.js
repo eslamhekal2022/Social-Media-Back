@@ -1,5 +1,5 @@
 import express from "express";
-import { signUp ,signIn, getUsers, deleteUser, updateUserRole, getUser, updateUserImage,  toggleFollow, getFollowers, getFollowing, verifyEmail, searchUsers, deleteAllUser} from "./user.controller.js";
+import { EditUserInfo,signUp ,signIn, getUsers, deleteUser, updateUserRole, getUser, updateUserImage,  toggleFollow, getFollowers, getFollowing, verifyEmail, searchUsers, deleteAllUser} from "./user.controller.js";
 import { authMiddleware, isAdmin } from "../../MiddleWare/MiddleWare.js";
 import upload from "../../MiddleWare/uploadImages.js";
 
@@ -22,4 +22,7 @@ userRouter.post("/updateUserImage/:id",upload.single("image"),authMiddleware, up
 userRouter.put("/follow/:id", authMiddleware, toggleFollow);
 userRouter.get("/followers/:id", authMiddleware, getFollowers);
 userRouter.get("/following/:id", authMiddleware, getFollowing);
+// Edit User
+userRouter.put("/editUser", authMiddleware, EditUserInfo);
+
 export default userRouter;
