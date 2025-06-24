@@ -127,6 +127,8 @@ export const verifyEmail = async (req, res) => {
 };
 
 
+
+
   export const getUsers = async (req, res) => {
     try {
       const allUsers = await userModel.find().populate("following","name email ").populate("followers","name email ");
@@ -147,7 +149,7 @@ export const verifyEmail = async (req, res) => {
     }
   };
 
-  
+
   export const deleteUser = async (req, res) => {
     try {
       const { id } = req.params;
@@ -304,6 +306,7 @@ export const toggleFollow = async (req, res) => {
       await followNotification.save();
 
       // إرسال الإشعار عبر Socket.IO
+    if(targetUserId!==currentUser){
     const receiverSocketId = onlineUsers.get(targetUserId);
 if (receiverSocketId) {
   io.to(receiverSocketId).emit("getFollow", {
@@ -314,6 +317,8 @@ if (receiverSocketId) {
     createdAt: new Date(),
   });
 }
+    }
+
     }
 
     await currentUser.save();
@@ -359,7 +364,7 @@ export const searchUsers = async (req, res) => {
   }
 };
 
-export const EditUserInfo = async (req, res) => {
+export const EditUserInfo = async (req,res) => {
   try {
     const userId = req.userId;
     const { name } = req.body;
@@ -387,6 +392,3 @@ export const EditUserInfo = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
-// export const searchUsers = async (req, res) => {
-// }

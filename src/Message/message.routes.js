@@ -1,10 +1,12 @@
 import express from "express"
-import { sendMessage } from "./Message.controller.js"
 import { authMiddleware } from "../../MiddleWare/MiddleWare.js"
+import { sendMessage } from "./Message.controller.js"
 import upload from "../../MiddleWare/uploadImages.js"
 
-const MessageRouter=express.Router()
+ const MessageRouter=express.Router()
 
-MessageRouter.post("/sendMessage",authMiddleware,sendMessage)
 
-export default MessageRouter
+
+ MessageRouter.post("/sendMessage",authMiddleware,upload.array("imageMessage",5),sendMessage)
+
+ export default MessageRouter

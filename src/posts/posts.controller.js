@@ -129,20 +129,20 @@ export const likedPost = async (req, res) => {
 
       await newNotification.save();
 
-      // ✅ Get sender name
       const sender = await userModel.findById(userId).select("name");
 
-      // 🔴 Real-time Notification (Socket.io)
-      const receiverSocket = onlineUsers.get(receiverId);
+      if(receiverId!==userId){
+        const receiverSocket = onlineUsers.get(receiverId);
       if (receiverSocket) {
         io.to(receiverSocket).emit("getNotification", {
           senderId: userId,
-          senderName: sender.name, // ✅ أرسل الاسم هنا
+          senderName: sender.name,
           receiverId,
           postId: post._id,
           type: "like",
           createdAt: new Date(),
         });
+      }
       }
     }
 
@@ -177,16 +177,14 @@ export const commentPost = async (req, res) => {
       createdAt: new Date()
     };
 
-    // ✏️ ضيفه للبوست
     post.comments.push(comment);
 
-    // ✨ سجل إشعار في الداتابيز
     const receiverId = post.user.toString();
 
-    // ✳️ جيب اسم المستخدم اللي علّق
     const sender = await userModel.findById(userId).select("name");
 
-    // ✉️ ابعت إشعار فوري
+          if(receiverId!==userId){
+          
     const receiverSocket = onlineUsers.get(receiverId);
     if (receiverSocket) {
       io.to(receiverSocket).emit("doComment", {
@@ -198,6 +196,7 @@ export const commentPost = async (req, res) => {
         createdAt: new Date(),
       });
     }
+          }
 
     await post.save();
     await post.populate("comments.user");

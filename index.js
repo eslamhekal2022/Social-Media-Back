@@ -10,8 +10,8 @@ import postRouter from "./src/posts/post.routes.js";
 import { connectDB } from "./dbConnection/dbConnection.js";
 import NotificationRouter from "./src/Notifications/Notifications.routes.js";
 import MessageRouter from "./src/Message/message.routes.js";
+import ConverstionsRouter from "./src/Converstions/converstion.routes.js";
 
-// 📦 CONFIG
 dotenv.config();
 connectDB();
 
@@ -33,7 +33,7 @@ socket.on("addUser", (userId) => {
   onlineUsers.set(userId, socket.id);
   console.log("🟢 User online:", userId);
 });
-  socket.on("disconnect", () => {
+  socket.on("disconnect",() => {
     for (let [userId, sockId] of onlineUsers.entries()) {
       if (sockId === socket.id) {
         onlineUsers.delete(userId);
@@ -71,6 +71,7 @@ app.use(userRouter);
 app.use(postRouter);
 app.use(NotificationRouter);
 app.use(MessageRouter);
+app.use(ConverstionsRouter);
 
 app.get("/", (req, res) => {
   res.send("🚀 Welcome to the Ecommerce API!");
