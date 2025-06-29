@@ -40,12 +40,12 @@ const UserSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
-emailVerificationToken: String,
-emailVerificationExpires: Date,
-     resetPasswordToken: String,
-  resetPasswordExpires: Date,
-  isVerified: { type: Boolean, default: false }
 
+  emailVerificationToken: String,
+  emailVerificationExpires: Date,
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+  isVerified:{ type: Boolean, default: false }
 },{timestamps: true});
 
 

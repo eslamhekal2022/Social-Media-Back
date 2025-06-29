@@ -7,9 +7,7 @@ export const addPost = async (req, res) => {
   try {
     const { content, image } = req.body;
 
-
-console.log("content",content)
-const imagePaths = req.files?.map((file) => `/uploads/${file.filename}`) || [];
+    const imagePaths = req.files?.map((file) => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`) || [];
 
     if (!content) {
       return res.status(400).json({ message: "Content is required" });
@@ -94,9 +92,6 @@ export const deletePost = async (req, res) => {
     }
 };
 
-
-
-
 export const likedPost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -108,9 +103,9 @@ export const likedPost = async (req, res) => {
 
     if (alreadyLiked) {
       post.likes = post.likes.filter(id => id.toString() !== userId);
-    } else {
+    } 
+    else {
       post.likes.push(userId);
-
       const receiverId = post.user.toString();
 
       await Notification.deleteMany({
@@ -157,8 +152,6 @@ export const likedPost = async (req, res) => {
   }
 };
 
-
-
 export const commentPost = async (req, res) => {
   try {
     const { text } = req.body;
@@ -170,7 +163,6 @@ export const commentPost = async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    // ✏️ جهّز الكومنت
     const comment = {
       text,
       user: userId,
@@ -178,13 +170,10 @@ export const commentPost = async (req, res) => {
     };
 
     post.comments.push(comment);
-
     const receiverId = post.user.toString();
-
     const sender = await userModel.findById(userId).select("name");
 
-          if(receiverId!==userId){
-          
+    if(receiverId!==userId){
     const receiverSocket = onlineUsers.get(receiverId);
     if (receiverSocket) {
       io.to(receiverSocket).emit("doComment", {

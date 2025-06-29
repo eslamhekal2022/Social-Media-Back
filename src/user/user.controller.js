@@ -2,7 +2,6 @@ import { userModel } from "../../Model/user.model.js";
 import { Notification } from "../../Model/notifications.js";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
-import upload from "../../MiddleWare/uploadImages.js";
 import { io, onlineUsers } from "../../index.js";
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
@@ -25,20 +24,40 @@ export const signUp = async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
 
-
     const image = req.file
       ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
       : '';
 
     const existingUser = await userModel.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already registered', success: false });
-    }
 
+    if (existingUser) {
+      if (existingUser.isVerified) {
+        return res.status(400).json({ message: 'User already registered', success: false });
+      } else {
+        const newToken = crypto.randomBytes(32).toString('hex');
+        existingUser.emailVerificationToken = newToken;
+        existingUser.emailVerificationExpires = Date.now() + 3600000;
+        await existingUser.save();
+
+        const verificationLink = `${process.env.FrontendDomain}/verify-email/${newToken}`;
+        await transporter.sendMail({
+          to: email,
+          from: process.env.EMAIL_USER,
+          subject: 'تأكيد بريدك الإلكتروني',
+          html: `<p>اضغط على الرابط لتأكيد بريدك:</p><a href="${verificationLink}">${verificationLink}</a>`
+        });
+
+        return res.status(200).json({
+          message: 'تم إرسال رابط التفعيل مجددًا إلى بريدك الإلكتروني.',
+          success: true
+        });
+      }
+    }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const token = crypto.randomBytes(32).toString('hex');
+
     const newUser = new userModel({
       name,
       email,
@@ -46,14 +65,14 @@ export const signUp = async (req, res) => {
       phone,
       role: 'admin',
       image,
+      isVerified: false,
       emailVerificationToken: token,
-      emailVerificationExpires: Date.now() + 3600000, // 1 hour
+      emailVerificationExpires: Date.now() + 3600000,
     });
 
     await newUser.save();
 
     const verificationLink = `${process.env.FrontendDomain}/verify-email/${token}`;
-
     await transporter.sendMail({
       to: email,
       from: process.env.EMAIL_USER,
@@ -61,30 +80,28 @@ export const signUp = async (req, res) => {
       html: `<p>اضغط على الرابط لتأكيد بريدك:</p><a href="${verificationLink}">${verificationLink}</a>`
     });
 
-    res.status(201).json({ message: 'تم التسجيل بنجاح، تحقق من بريدك الإلكتروني لتفعيل الحساب', success: true,token});
-
+    res.status(201).json({
+      message: 'تم التسجيل بنجاح، تحقق من بريدك الإلكتروني لتفعيل الحساب',
+      success: true
+    });
   } catch (error) {
     console.error('Signup error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
+
 export const signIn = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await userModel.findOne({ email });
     if (!user) return res.status(400).json({ message: 'Invalid email or password' });
-
     if (!user.isVerified) return res.status(401).json({ message: 'يرجى تفعيل الحساب من البريد الإلكتروني' });
-
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Invalid email or password' });
-
     const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '7d',
     });
-
     res.status(200).json({
       message: 'Login successful',
       success: true,
@@ -107,27 +124,34 @@ export const verifyEmail = async (req, res) => {
   const { token } = req.params;
 
   try {
-    const user = await userModel.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: Date.now() }
-    });
+    const user = await userModel.findOne({ emailVerificationToken: token });
 
-    if (!user) return res.status(400).json({ message: 'رابط التفعيل غير صالح أو منتهي' });
+    if (!user) {
+      return res.status(400).json({ message: 'رابط التفعيل غير صالح.', success: false });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'الحساب مفعل بالفعل.', success: false });
+    }
+
+    if (user.emailVerificationExpires < Date.now()) {
+      return res.status(400).json({ message: 'رابط التفعيل منتهي الصلاحية.', success: false });
+    }
 
     user.isVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
     await user.save();
 
-    res.json({ message: 'تم تفعيل الحساب بنجاح. يمكنك تسجيل الدخول الآن.',success:true});
+    res.json({
+      message: 'تم تفعيل الحساب بنجاح. يمكنك تسجيل الدخول الآن.',
+      success: true
+    });
   } catch (error) {
     console.error('Email verification error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
-
-
-
 
   export const getUsers = async (req, res) => {
     try {
@@ -228,8 +252,6 @@ res.status(200).json({message:"userAho",success:true,data:user})
  }
 }
 
-
-
 export const updateUserImage = async (req, res) => {
   try {
     const userId=req.userId
@@ -245,7 +267,7 @@ export const updateUserImage = async (req, res) => {
 
     const updatedUser = await userModel.findByIdAndUpdate(
       id,
-      { image: `/uploads/${req.file.filename}` }, // نحفظ المسار النسبي
+      { image: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`},
       { new: true }
     );
 
@@ -259,15 +281,11 @@ export const updateUserImage = async (req, res) => {
   }
 };
 
-
 export const toggleFollow = async (req, res) => {
   try {
     const currentUserId = req.userId;
     const targetUserId = req.params.id;
-
-    console.log("currentUserId",currentUserId)
-    console.log("targetUserId",targetUserId)
-
+    
     if (currentUserId === targetUserId) {
       return res.status(400).json({ message: "لا يمكنك متابعة نفسك" });
     }
@@ -331,8 +349,6 @@ if (receiverSocketId) {
   }
 };
 
-
-
 export const getFollowers = async (req, res) => {
   const user = await userModel.findById(req.params.id).populate("followers", "name image");
   res.json({ success: true, followers: user.followers });
@@ -357,9 +373,9 @@ export const searchUsers = async (req, res) => {
         { 'name': { $regex: query, $options: 'i' } }
       ]
     });
-
     res.status(200).json({ success: true, data: products });
-  } catch (error) {
+  } 
+  catch (error) {
     res.status(500).json({ message: "Error searching for products", error });
   }
 };
@@ -368,11 +384,9 @@ export const EditUserInfo = async (req,res) => {
   try {
     const userId = req.userId;
     const { name } = req.body;
-
     if (!name) {
       return res.status(400).json({ message: "Name is required" });
     }
-
     const userUpdated = await userModel.findByIdAndUpdate(
       userId,
       { name },
@@ -380,7 +394,7 @@ export const EditUserInfo = async (req,res) => {
     );
 
     if (!userUpdated) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({message: "User not found" });
     }
 
     return res.status(200).json({

@@ -1,6 +1,7 @@
 import { json } from "express";
 import { ConversationModel } from "../../Model/converstions.js";
 import { MessageModel } from "../../Model/Message.model.js";
+import { io, onlineUsers } from "../../index.js"; // ✅ تأكد إن ده موجود عندك
 
 export const createConversation = async (req, res) => {
   try {
@@ -17,7 +18,6 @@ export const createConversation = async (req, res) => {
       return res.json({ success: true, conversation });
     }
 
-    // Create new one
     conversation = await ConversationModel.create({
       members: [senderId, receiverId],
     });
@@ -103,3 +103,28 @@ export const DeleteMessages = async (req, res) => {
     res.status(404).json({message:"AllMessage Is KosOmk"})
   }
 }
+
+export const markMessagesAsRead = async (req, res) => {
+  try {
+    const myId = req.userId; 
+    const { senderId } = req.params;
+
+    await MessageModel.updateMany(
+      { senderId, receiverId: myId, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    const senderSocketId = onlineUsers.get(senderId); 
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messagesRead", {
+        readerId: myId,
+        senderId,
+      });
+    }
+
+    res.json({ success: true, message: "تم تحديث الرسائل كمقروءة" });
+  } catch (err) {
+    console.error("❌ Error updating isRead:", err);
+    res.status(500).json({ message: "فشل في تحديث isRead" });
+  }
+};
